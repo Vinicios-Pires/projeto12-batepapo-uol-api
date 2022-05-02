@@ -147,6 +147,93 @@ app.post("/status", async (req, res) => {
    }
 });
 
+// Parte do bonus
+app.delete("/messages/:id", async (req, res) => {
+   const { user: name } = req.headers;
+   const { id } = req.params;
+
+   try {
+      await mongoClient.connect();
+
+      const mensagem = await db
+         .collection("mensagens")
+         .findOne({ _id: new ObjectId(id) });
+
+      if (!mensagem) {
+         res.sendStatus(404);
+         console.log("não foi possível remover a mensagem, pois não existe");
+         return;
+      }
+
+      if (mensagem.from !== name) {
+         res.sendStatus(401);
+         console.log(
+            "não foi possível remover a mensagem, pois o dono da mensagem é diferente de quem está tentando excluir"
+         );
+         return;
+      }
+
+      await db.collection("mensagens").deleteOne({ _id: new ObjectId(id) });
+      res.send(console.log("mensagem removida"));
+      mongoClient.close();
+   } catch (e) {
+      console.log("não foi possível remover a mensagem", e);
+      mongoClient.close();
+   }
+});
+
+app.put("/messages/:id", async (req, res) => {
+   const { id } = req.params;
+   const { to, text, type } = req.body;
+   const { user: name } = req.headers;
+
+   const mensagemSchema = joi.object({
+      _id: joi.optional(),
+      from: joi.string().valid(name).required(),
+      to: joi.string().required(),
+      text: joi.string().required(),
+      type: joi.string().valid("message", "private_message").required(),
+      time: joi.optional(),
+   });
+
+   try {
+      await mongoClient.connect();
+      const mensagem = await db
+         .collection("mensagens")
+         .findOne({ _id: new ObjectId(id) });
+      console.log(mensagem);
+      const validacao = mensagemSchema.validate(mensagem);
+      if (validacao.error) {
+         res.status(422).send(
+            console.log("Houve erro em alguma das validações")
+         );
+         return;
+      }
+
+      // if (mensagem._id !== id.toString()) {
+      //    res.status(404).send(
+      //       console.log("id da mensagem não confere")
+      //    );
+      //    console.log(mensagem._id, id.toString()); // são iguais, mas são diferentes
+      //    return;
+      // }
+
+      if (mensagem.from !== name) {
+         res.status(401).send(console.log("não é dono da mensagem"));
+         return;
+      }
+
+      await db
+         .collection("mensagens")
+         .updateOne({ _id: mensagem._id }, { $set: req.body });
+      res.status(200).send(console.log("mensagem atualizada com sucesso"));
+      mongoClient.close();
+   } catch (e) {
+      res.send(console.log("não foi possível atualizar a mensagem"));
+      mongoClient.close();
+   }
+});
+
 const port = process.env.PORT || 5000;
 app.listen(port, () => {
    console.log(
