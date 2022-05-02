@@ -107,6 +107,21 @@ app.post("/messages", async (req, res) => {
    }
 });
 
+app.get("/messages", async (req, res) => {
+   const limit = req.query.limit;
+   // const { user: name } = req.headers;
+
+   try {
+      await mongoClient.connect();
+      const mensagens = await db.collection("mensagens").find().toArray();
+      res.send([...mensagens].slice(-limit));
+      mongoClient.close();
+   } catch (error) {
+      res.sendStatus(500);
+      mongoClient.close();
+   }
+});
+
 const port = process.env.PORT || 5000;
 app.listen(port, () => {
    console.log(
