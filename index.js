@@ -122,6 +122,31 @@ app.get("/messages", async (req, res) => {
    }
 });
 
+app.post("/status", async (req, res) => {
+   const { user: name } = req.headers;
+
+   try {
+      await mongoClient.connect();
+      const usuario = await db
+         .collection("participantes")
+         .findOne({ name: name });
+      if (!usuario) {
+         res.sendStatus(404);
+         return;
+      }
+      await db
+         .collection("participantes")
+         .updateOne(
+            { name: usuario.name },
+            { $set: { lastStatus: Date.now() } }
+         );
+      res.sendStatus(200);
+      mongoClient.close();
+   } catch (e) {
+      mongoClient.close();
+   }
+});
+
 const port = process.env.PORT || 5000;
 app.listen(port, () => {
    console.log(
