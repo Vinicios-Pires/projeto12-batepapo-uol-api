@@ -71,6 +71,42 @@ app.get("/participants", async (req, res) => {
    }
 });
 
+app.post("/messages", async (req, res) => {
+   const { user: name } = req.headers;
+   const { to, text, type } = req.body;
+
+   const mensagem = {
+      from: name,
+      to,
+      text,
+      type,
+      time: dayjs().format("HH:mm:ss"),
+   };
+
+   const mensagemSchema = joi.object({
+      from: joi.string().valid(name).required(),
+      to: joi.string().required(),
+      text: joi.string().required(),
+      type: joi.string().valid("message", "private_message").required(),
+      time: joi.optional(),
+   });
+   const validacao = mensagemSchema.validate(mensagem);
+   if (validacao.error) {
+      res.status(422).send(console.log(validacao.error.details));
+      return;
+   }
+
+   try {
+      await mongoClient.connect();
+      await db.collection("mensagens").insertOne({ ...mensagem });
+      res.sendStatus(201);
+      mongoClient.close();
+   } catch (error) {
+      res.sendStatus(500);
+      mongoClient.close();
+   }
+});
+
 const port = process.env.PORT || 5000;
 app.listen(port, () => {
    console.log(
