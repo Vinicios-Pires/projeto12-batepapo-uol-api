@@ -56,6 +56,21 @@ app.post("/participants", async (req, res) => {
    }
 });
 
+app.get("/participants", async (req, res) => {
+   try {
+      await mongoClient.connect();
+      const participantes = await db
+         .collection("participantes")
+         .find()
+         .toArray();
+      res.send(participantes);
+      mongoClient.close();
+   } catch (error) {
+      res.sendStatus(500);
+      mongoClient.close();
+   }
+});
+
 const port = process.env.PORT || 5000;
 app.listen(port, () => {
    console.log(
