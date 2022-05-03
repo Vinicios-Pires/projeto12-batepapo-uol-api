@@ -18,6 +18,7 @@ promise.then(() => {
    db = mongoClient.db("projeto-back-uol");
    console.log(chalk.bold.blue("Banco de dados conectado"));
 });
+promise.catch((e) => console.log("Falha ao conectar com o banco de dados", e));
 
 app.post("/participants", async (req, res) => {
    const { name } = req.body;
@@ -46,28 +47,22 @@ app.post("/participants", async (req, res) => {
    }
 
    try {
-      await mongoClient.connect();
       await db.collection("participantes").insertOne({ ...participante });
       res.sendStatus(201);
-      mongoClient.close();
    } catch (error) {
       res.sendStatus(500);
-      mongoClient.close();
    }
 });
 
 app.get("/participants", async (req, res) => {
    try {
-      await mongoClient.connect();
       const participantes = await db
          .collection("participantes")
          .find()
          .toArray();
       res.send(participantes);
-      mongoClient.close();
    } catch (error) {
       res.sendStatus(500);
-      mongoClient.close();
    }
 });
 
@@ -97,13 +92,10 @@ app.post("/messages", async (req, res) => {
    }
 
    try {
-      await mongoClient.connect();
       await db.collection("mensagens").insertOne({ ...mensagem });
       res.sendStatus(201);
-      mongoClient.close();
    } catch (error) {
       res.sendStatus(500);
-      mongoClient.close();
    }
 });
 
@@ -112,13 +104,10 @@ app.get("/messages", async (req, res) => {
    // const { user: name } = req.headers;
 
    try {
-      await mongoClient.connect();
       const mensagens = await db.collection("mensagens").find().toArray();
       res.send([...mensagens].slice(-limit));
-      mongoClient.close();
    } catch (error) {
       res.sendStatus(500);
-      mongoClient.close();
    }
 });
 
@@ -126,7 +115,6 @@ app.post("/status", async (req, res) => {
    const { user: name } = req.headers;
 
    try {
-      await mongoClient.connect();
       const usuario = await db
          .collection("participantes")
          .findOne({ name: name });
@@ -141,9 +129,8 @@ app.post("/status", async (req, res) => {
             { $set: { lastStatus: Date.now() } }
          );
       res.sendStatus(200);
-      mongoClient.close();
    } catch (e) {
-      mongoClient.close();
+      console.log("Não foi possível concluir a atualização", e);
    }
 });
 
@@ -153,8 +140,6 @@ app.delete("/messages/:id", async (req, res) => {
    const { id } = req.params;
 
    try {
-      await mongoClient.connect();
-
       const mensagem = await db
          .collection("mensagens")
          .findOne({ _id: new ObjectId(id) });
@@ -175,10 +160,8 @@ app.delete("/messages/:id", async (req, res) => {
 
       await db.collection("mensagens").deleteOne({ _id: new ObjectId(id) });
       res.send(console.log("mensagem removida"));
-      mongoClient.close();
    } catch (e) {
       console.log("não foi possível remover a mensagem", e);
-      mongoClient.close();
    }
 });
 
@@ -197,7 +180,6 @@ app.put("/messages/:id", async (req, res) => {
    });
 
    try {
-      await mongoClient.connect();
       const mensagem = await db
          .collection("mensagens")
          .findOne({ _id: new ObjectId(id) });
@@ -227,10 +209,8 @@ app.put("/messages/:id", async (req, res) => {
          .collection("mensagens")
          .updateOne({ _id: mensagem._id }, { $set: req.body });
       res.status(200).send(console.log("mensagem atualizada com sucesso"));
-      mongoClient.close();
    } catch (e) {
       res.send(console.log("não foi possível atualizar a mensagem"));
-      mongoClient.close();
    }
 });
 
