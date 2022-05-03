@@ -24,6 +24,14 @@ app.post("/participants", async (req, res) => {
    const { name } = req.body;
    const participante = { name, lastStatus: Date.now() };
 
+   const mensagemEntrada = {
+      from: name,
+      to: "Todos",
+      text: "entra na sala...",
+      type: "status",
+      time: dayjs().format("HH:mm:ss"),
+   };
+
    const nameSchema = joi.object({
       name: joi.string().required(),
    });
@@ -47,7 +55,8 @@ app.post("/participants", async (req, res) => {
    }
 
    try {
-      await db.collection("participantes").insertOne({ ...participante });
+      await db.collection("participantes").insertOne(participante);
+      await db.collection("mensagens").insertOne(mensagemEntrada);
       res.sendStatus(201);
    } catch (error) {
       res.sendStatus(500);
@@ -101,10 +110,20 @@ app.post("/messages", async (req, res) => {
 
 app.get("/messages", async (req, res) => {
    const limit = req.query.limit;
-   // const { user: name } = req.headers;
+   const { user: name } = req.headers;
 
    try {
-      const mensagens = await db.collection("mensagens").find().toArray();
+      const mensagens = await db
+         .collection("mensagens")
+         .find({
+            $or: [
+               { type: "message" },
+               { type: "status" },
+               { from: name, type: "private_message" },
+               { to: name, type: "private_message" },
+            ],
+         })
+         .toArray();
       res.send([...mensagens].slice(-limit));
    } catch (error) {
       res.sendStatus(500);
@@ -126,7 +145,7 @@ app.post("/status", async (req, res) => {
          .collection("participantes")
          .updateOne(
             { name: usuario.name },
-            { $set: { lastStatus: Date.now() } }
+            { $set: { ...usuario, lastStatus: Date.now() } }
          );
       res.sendStatus(200);
    } catch (e) {
@@ -167,7 +186,6 @@ app.delete("/messages/:id", async (req, res) => {
 
 app.put("/messages/:id", async (req, res) => {
    const { id } = req.params;
-   const { to, text, type } = req.body;
    const { user: name } = req.headers;
 
    const mensagemSchema = joi.object({
@@ -183,7 +201,6 @@ app.put("/messages/:id", async (req, res) => {
       const mensagem = await db
          .collection("mensagens")
          .findOne({ _id: new ObjectId(id) });
-      console.log(mensagem);
       const validacao = mensagemSchema.validate(mensagem);
       if (validacao.error) {
          res.status(422).send(
@@ -192,11 +209,11 @@ app.put("/messages/:id", async (req, res) => {
          return;
       }
 
-      // if (mensagem._id !== id.toString()) {
+      // if (mensagem._id !== id) {
       //    res.status(404).send(
       //       console.log("id da mensagem não confere")
       //    );
-      //    console.log(mensagem._id, id.toString()); // são iguais, mas são diferentes
+      //    console.log(mensagem._id, id); // são iguais, mas são diferentes
       //    return;
       // }
 
